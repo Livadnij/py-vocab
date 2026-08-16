@@ -1,0 +1,18 @@
+from os import getenv
+from dotenv import load_dotenv
+import json
+
+load_dotenv()
+
+# GOOGLE_SERVICE_ACCOUNT_JSON_STOCK = json.loads(getenv('GOOGLE_SERVICE_ACCOUNT_JSON_STOCK'))
+# STOCK_SHEET_ID = getenv('STOCK_SHEET_ID')
+# STOCK_SHEET_RANGE = getenv('STOCK_SHEET_RANGE')
+
+GOOGLE_SERVICE_ACCOUNT_JSON_PRODUCTS = json.loads(getenv('GOOGLE_SERVICE_ACCOUNT_JSON_PRODUCTS'))
+PRODUCTS_SHEET_ID = getenv('PRODUCTS_SHEET_ID')
+PRODUCTS_SHEET_RANGE = int(getenv('PRODUCTS_SHEET_RANGE'))
+
+LLM_MODEL = getenv('LLM_MODEL')
+LLM_BASE_URL = getenv('LLM_BASE_URL')
+LLM_CONCURENT_REQ = int(getenv('LLM_CONCURENT_REQ'))
+LLM_API_KEY=getenv('LLM_API_KEY')
