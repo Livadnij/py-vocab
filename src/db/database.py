@@ -1,33 +1,26 @@
-import sqlite3
-from src.db import schema
+from sqlalchemy import create_engine, event
+from sqlalchemy.orm import sessionmaker
+
+from src.db.models import Base
 
 
 class Database:
     def __init__(self, path='fuzzy_vocab.db'):
-        self.conn = sqlite3.connect(path)
-        self.conn.execute("PRAGMA foreign_keys = ON")
+        self.engine = create_engine(f"sqlite:///{path}", connect_args={"check_same_thread": False})
+
+        @event.listens_for(self.engine, "connect")
+        def _set_sqlite_pragma(dbapi_connection, connection_record):
+            cursor = dbapi_connection.cursor()
+            cursor.execute("PRAGMA foreign_keys = ON")
+            cursor.close()
+
+        self.Session = sessionmaker(bind=self.engine)
 
     def create_tables(self):
-        schema.create_tables(self.conn)
+        Base.metadata.create_all(self.engine)
+
+    def session(self):
+        return self.Session()
 
     def close(self):
-        self.conn.close()
-
-    def get_or_create(self, table: str, name: str) -> int:
-        c = self.conn.cursor()
-        c.execute(f"SELECT id FROM {table} WHERE name = ?", (name,))
-        row = c.fetchone()
-        if row is not None:
-            return row[0]
-
-        c.execute(f"INSERT INTO {table} (name) VALUES (?)", (name,))
-        self.conn.commit()
-        return c.lastrowid
-
-    def link_brand_tier(self, brand_id: int, tier_word_id: int):
-        c = self.conn.cursor()
-        c.execute(
-            "INSERT OR IGNORE INTO brand_tier (brand_id, tier_word_id) VALUES (?, ?)",
-            (brand_id, tier_word_id)
-        )
-        self.conn.commit()
+        self.engine.dispose()
