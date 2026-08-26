@@ -6,13 +6,15 @@ from src.llm.llm import LLLM
 from src.processing import run_category
 from src.sheet.sheet import Spreadsheet
 
-CATEGORY = "Вбудовані пральні машини та сушарки"
+CATEGORY = ""
 
 
 async def main():
     db = Database()
     sheet = Spreadsheet(GOOGLE_SERVICE_ACCOUNT_JSON_PRODUCTS, PRODUCTS_SHEET_ID)
     llm = LLLM(LLM_BASE_URL, LLM_API_KEY)
+
+    db.create_tables()
 
     await run_category(db, sheet, llm, CATEGORY)
 

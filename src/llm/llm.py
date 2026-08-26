@@ -7,7 +7,7 @@ class LLLM:
     def __init__(self, base_url: str, api_key: str):
         self.client = AsyncOpenAI(base_url=base_url, api_key=api_key)
 
-    async def extract(self, title: str, model: str):
+    async def extract(self, title: str, model: str) -> list[dict]:
         response = await self.client.chat.completions.create(
             model=model,
             messages=[
