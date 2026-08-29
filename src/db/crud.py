@@ -8,6 +8,7 @@ from src.db.database import Database
 from src.db.models import Base
 
 
+
 def get_or_create(session: Session, model: type[Base], name: str):
     instance = session.query(model).filter_by(name=name).first()
     if instance is not None:

@@ -17,3 +17,6 @@ class TokenBase(BaseModel):
 
 class TokenList(BaseModel):
     tokens: list[TokenBase]
+
+class TitlesList(BaseModel):
+    titles: list[str]

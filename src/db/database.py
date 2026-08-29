@@ -5,8 +5,8 @@ from src.db.models import Base
 
 
 class Database:
-    def __init__(self, path='fuzzy_vocab.db'):
-        self.engine = create_engine(f"sqlite:///{path}", connect_args={"check_same_thread": False})
+    def __init__(self, path: str):
+        self.engine = create_engine(path, connect_args={"check_same_thread": False})
 
         @event.listens_for(self.engine, "connect")
         def _set_sqlite_pragma(dbapi_connection, connection_record):

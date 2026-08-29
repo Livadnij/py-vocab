@@ -1,13 +1,14 @@
 import asyncio
 import json
 
-from src.config import LLM_CONCURENT_REQ, LLM_MODEL, PRODUCTS_SHEET_RANGE
+from src.config import settings
 from src.db.crud import persist_tokens
 from src.llm.tokens import normalize_tokens
 
 from src.db.database import Database
 from src.sheet.sheet import Spreadsheet
 from src.llm.llm import LLLM
+from src.schemas import TitlesList
 
 import datetime
 
@@ -37,18 +38,17 @@ async def process_title(semaphore: asyncio.Semaphore, llm: LLLM, db: Database, t
     print("\n".join(title_log))
 
 
-async def run_category(db: Database, sheet: Spreadsheet, llm: LLLM, category: str) -> None:
-    print(f'Starting processing of {category} category')
+async def run_process(db: Database, llm: LLLM, titles: TitlesList) -> None:
+    process_start_time = datetime.datetime.now()
+    print(f'Starting processing of title from request')
     try:
-        titles = sheet.read_column_content(category, PRODUCTS_SHEET_RANGE)
-        category_len = len(titles)
-        print(f'length: {category_len}')
+        titles_len = len(titles)
+        print(f'length: {titles_len}')
 
-        semaphore = asyncio.Semaphore(LLM_CONCURENT_REQ)
+        semaphore = asyncio.Semaphore(settings.LLM_CONCURENT_REQ)
         await asyncio.gather(*(
-            process_title(semaphore, llm, db, title, LLM_MODEL, i, category_len)
+            process_title(semaphore, llm, db, title, settings.LLM_MODEL, i, titles_len)
             for i, title in enumerate(titles)
         ))
     finally:
-        print(f'Done category: {category}')
-    
+        print(f'Done category')

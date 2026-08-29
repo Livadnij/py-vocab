@@ -1,18 +1,28 @@
-from os import getenv
-from dotenv import load_dotenv
-import json
+from typing import Any
 
-load_dotenv()
+from pydantic_settings import BaseSettings, SettingsConfigDict
 
-# GOOGLE_SERVICE_ACCOUNT_JSON_STOCK = json.loads(getenv('GOOGLE_SERVICE_ACCOUNT_JSON_STOCK'))
-# STOCK_SHEET_ID = getenv('STOCK_SHEET_ID')
-# STOCK_SHEET_RANGE = getenv('STOCK_SHEET_RANGE')
 
-GOOGLE_SERVICE_ACCOUNT_JSON_PRODUCTS = json.loads(getenv('GOOGLE_SERVICE_ACCOUNT_JSON_PRODUCTS'))
-PRODUCTS_SHEET_ID = getenv('PRODUCTS_SHEET_ID')
-PRODUCTS_SHEET_RANGE = int(getenv('PRODUCTS_SHEET_RANGE'))
+class Settings(BaseSettings):
+    model_config = SettingsConfigDict(env_file=".env")
+  
+    GOOGLE_SERVICE_ACCOUNT_JSON_STOCK: dict[str, Any]
+    STOCK_SHEET_RANGE: str
+    STOCK_SHEET_ID: str
 
-LLM_MODEL = getenv('LLM_MODEL')
-LLM_BASE_URL = getenv('LLM_BASE_URL')
-LLM_CONCURENT_REQ = int(getenv('LLM_CONCURENT_REQ'))
-LLM_API_KEY=getenv('LLM_API_KEY')
+    GOOGLE_SERVICE_ACCOUNT_JSON_PRODUCTS: dict[str, Any]
+    PRODUCTS_SHEET_ID: str
+    PRODUCTS_SHEET_RANGE: str
+
+    LLM_MODEL: str
+    LLM_BASE_URL: str
+    LLM_CONCURENT_REQ: int
+    LLM_API_KEY: str
+
+    CATEGORY: str
+
+    PRODUCTION: bool
+
+    DSN: str
+  
+settings = Settings()	  
