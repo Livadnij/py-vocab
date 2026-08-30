@@ -9,5 +9,5 @@ from src.service import request as service_request
 router = APIRouter()
 
 @router.post("/requests")
-def create_request(titles: TitlesList, db: Annotated[Database, Depends(get_db)]):
-    return service_request.create_request(db, titles.titles)
+async def create_request(titles: TitlesList, db: Annotated[Database, Depends(get_db)]):
+    return await service_request.create_request(db, titles.titles)

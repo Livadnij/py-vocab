@@ -1,3 +1,5 @@
+import asyncio
+
 from src.config import settings
 from src.db.database import Database
 from src.llm.llm import LLLM
@@ -6,13 +8,17 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 
 from src.api import router
+from src.worker.loop import worker_loop
+from src.worker.state import WorkerState
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    worker_state = WorkerState()
     db = Database(settings.DSN)
     llm = LLLM(settings.LLM_BASE_URL, settings.LLM_API_KEY)
-    yield {"db": db, "llm": llm}
-    db.close()
+    worker_task = asyncio.create_task(worker_loop(db, llm, worker_state))
+    yield {"db": db, "llm": llm, "worker_state": worker_state}
+    await db.close()
 
 app = FastAPI(
     lifespan=lifespan,

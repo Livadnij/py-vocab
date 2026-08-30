@@ -117,7 +117,7 @@ class ProcessingAttempt(CreatedAtMixin, Base):
     title: Mapped["Title"] = relationship(back_populates="attempts")
     request: Mapped["Request"] = relationship(back_populates="attempts")
     thinking: Mapped["Thinking | None"] = relationship(back_populates="attempt")
-    hard_error: Mapped["HardError | None"] = relationship(back_populates="attempt")
+    attempt_errors: Mapped[list["AttemptError"]] = relationship(back_populates="attempt")
 
 
 class Request(TimestampMixin, Base):
@@ -129,34 +129,38 @@ class Request(TimestampMixin, Base):
 
     titles: Mapped[list['Title']] = relationship(back_populates='request')
     attempts: Mapped[list["ProcessingAttempt"]] = relationship(back_populates="request")
+    hard_errors: Mapped[list["HardError"]] = relationship(back_populates="request")
 
 
 class Thinking(CreatedAtMixin, Base):
     __tablename__ = "thinkings"
     id: Mapped[int] = mapped_column(primary_key=True)
     attempt_id: Mapped[int] = mapped_column(ForeignKey("processing_attempts.id"), unique=True)
-    tokens: Mapped[int] = mapped_column(nullable=False)
-    text: Mapped[str] = mapped_column(nullable=False)
+    prompt_tokens: Mapped[int] = mapped_column(nullable=False)
+    completion_tokens: Mapped[int] = mapped_column(nullable=False)
+    reasoning_tokens: Mapped[int | None] = mapped_column(nullable=True)
+    text: Mapped[str | None] = mapped_column(nullable=True)
+    finish_reason: Mapped[str] = mapped_column(nullable=False)
     model: Mapped[str] = mapped_column(nullable=False)
     response: Mapped[str | None] = mapped_column(nullable=True)
+    duration: Mapped[timedelta] = mapped_column(nullable=False)
 
     attempt: Mapped["ProcessingAttempt"] = relationship(back_populates="thinking")
-    validation_errors: Mapped[list["ValidationError"]] = relationship(back_populates="thinking")
 
 
 class HardError(CreatedAtMixin, Base):
     __tablename__ = "hard_errors"
     id: Mapped[int] = mapped_column(primary_key=True)
-    attempt_id: Mapped[int] = mapped_column(ForeignKey("processing_attempts.id"), unique=True)
+    request_id: Mapped[int] = mapped_column(ForeignKey("requests.id"))
     message: Mapped[str] = mapped_column(nullable=False)
 
-    attempt: Mapped["ProcessingAttempt"] = relationship(back_populates="hard_error")
+    request: Mapped["Request"] = relationship(back_populates="hard_errors")
 
 
-class ValidationError(CreatedAtMixin, Base):
-    __tablename__ = "validation_errors"
+class AttemptError(CreatedAtMixin, Base):
+    __tablename__ = "attempt_errors"
     id: Mapped[int] = mapped_column(primary_key=True)
-    thinking_id: Mapped[int] = mapped_column(ForeignKey("thinkings.id"))
+    attempt_id: Mapped[int] = mapped_column(ForeignKey("processing_attempts.id"))
     message: Mapped[str] = mapped_column(nullable=False)
 
-    thinking: Mapped["Thinking"] = relationship(back_populates="validation_errors")
+    attempt: Mapped["ProcessingAttempt"] = relationship(back_populates="attempt_errors")
