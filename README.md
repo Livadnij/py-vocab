@@ -48,11 +48,18 @@ Keeps each `Request`/batch a manageable, boundable unit — the worker always pr
 **Why SQLite, and what that constrains.**
 Local dev choice. SQLite allows only one writer at a time regardless of app-level concurrency — WAL mode (enabled via a PRAGMA listener in `Database.__init__`) lets readers and a writer coexist without blocking, but writes still serialize underneath. This is fine at current scale (a DB write is milliseconds against an LLM call that takes seconds) but is a real constraint if this ever needs to scale past single-machine local processing — moving to Postgres/MySQL would remove it, and the code is written against plain SQLAlchemy 2.0 (`select()`/`AsyncSession`, no SQLite-specific query syntax) specifically so that swap wouldn't require rewriting the query layer, just the DSN and driver.
 
+**Why a request's derived `failed` status means it has a `HardError`, not that some title inside it failed.**
+A `Request` can be full of a mix of succeeded and failed titles and still count as `succeeded` overall, since per-title failures are normal and expected at scale. Only a systemic failure, the kind that halts the whole worker, marks the batch itself as failed.
+
+**Why a title's status within `GET /requests/{id}` is a single value, not a "most recent attempt" lookup.**
+Reprocessing a title creates a new `Request` with a new attempt, it never adds a second attempt to the same request. So a title can never have more than one attempt within a given request, and the query relies on that being structurally guaranteed rather than picking a "latest" one.
+
 ## Not yet wired up
 
 - No confidence threshold is enforced anywhere — `occurrence` is tracked but nothing currently reads it to decide whether a brand/tier pairing is "trustworthy."
 - No automatic recovery for attempts stuck at `running` after a crash/restart.
 - A desktop app is planned to manage processing (rerun failed titles, rerun specific ones) against the API — not built yet.
+- Titles in `GET /requests/{id}` currently only report counts, `brand_count`, `tier_word_count`, `descriptor_count`, not the actual brand/tier/descriptor names, still just numbers standing in for the real review data.
 
 ## Running it
 
@@ -70,6 +77,8 @@ Worker processing is off by default — call `POST /worker/start` to begin, even
 - `POST /requests` — submit a list of titles for processing; chunks into `Request`s of up to 200 and creates a `ProcessingAttempt` per new (deduplicated) title
 - `POST /worker/start` / `POST /worker/stop` — control background processing
 - `GET /worker/status` — whether the worker is running and currently mid-batch
+- `GET /requests` — list requests, paginated, filterable by derived status (pending/running/succeeded/failed), sortable by created_at, hard_error_count, or attempt_error_count
+- `GET /requests/{id}` — one request's detail plus its titles, paginated and filterable by attempt status, sortable by title, brand_count, tier_word_count, descriptor_count, total_word_count, attempt_error_count, status, or total_tokens
 
 ## Schema layout
 
