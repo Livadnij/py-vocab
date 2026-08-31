@@ -14,7 +14,6 @@ class AttemptStatus(str, enum.Enum):
     succeeded = "succeeded"
     failed = "failed"
 
-
 class CreatedAtMixin:
     created_at: Mapped[datetime] = mapped_column(server_default=func.now(), nullable=False)
 
