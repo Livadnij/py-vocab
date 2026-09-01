@@ -7,8 +7,8 @@ from src.db.models import AttemptError, AttemptStatus, HardError, ProcessingAtte
 from src.schemas import RequestListQuery, RequestStatus
 
 
-async def create_request(session: AsyncSession, titles_amount: int) -> Request:
-    request_inst = Request(uuid=uuid4(), titles_amount=titles_amount)
+async def create_request(session: AsyncSession, titles_amount: int, selected_prompt_id: int | None = None) -> Request:
+    request_inst = Request(uuid=uuid4(), titles_amount=titles_amount, selected_prompt_id=selected_prompt_id)
     session.add(request_inst)
     await session.flush()
     return request_inst

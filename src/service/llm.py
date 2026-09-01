@@ -39,9 +39,9 @@ class LLMSystemicError(LLMCallError):
     """The LLM service itself is unusable — affects every remaining title."""
 
 
-async def extract_raw_tokens(attempt: ProcessingAttempt, model: str, llm: LLLM, title_log: list[str]) -> ExtractionResult:
+async def extract_raw_tokens(attempt: ProcessingAttempt, model: str, llm: LLLM, prompt: str, title_log: list[str]) -> ExtractionResult:
     try:
-        response = await llm.extract(attempt.title.title, model)
+        response = await llm.extract(attempt.title.title, model, prompt)
         title_log.append(f'LLM response received in {response.duration.total_seconds()} sec.')
         return response
     except AuthenticationError as e:

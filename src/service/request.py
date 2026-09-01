@@ -1,21 +1,32 @@
+from fastapi import HTTPException
+
 from src.db.database import Database
-from src.db.crud import request as crud_request, title as crud_title, attempt as crud_attempt
+from src.db.crud import (
+    request as crud_request, 
+    title as crud_title, 
+    attempt as crud_attempt,
+    prompt as crud_prompt
+    )
 from src.schemas import PaginationOut, RequestDetailOut, RequestGetQuery, RequestListOut, RequestListQuery, RequestOut, TitleListOut, TitleOut
 
 
 CHUNK_SIZE = 200
 
-async def create_request(db: Database, titles: list[str]):
-    unique_titles = list(dict.fromkeys(titles))  # order-preserving dedup
+async def create_request(db: Database, titles: list[str], prompt_id: int | None = None):
+    unique_titles = list(dict.fromkeys(titles))
 
     async with db.session() as session:
+        if prompt_id is not None:
+            prompt = await crud_prompt.get_prompt_by_id(session, prompt_id)
+            if prompt is None:
+                raise HTTPException(status_code=404, detail="Prompt not found")
         existing = await crud_title.get_titles_by_title(session, unique_titles)
         new_titles = [t for t in unique_titles if t not in existing]
 
         requests = []
         for i in range(0, len(new_titles), CHUNK_SIZE):
             chunk = new_titles[i:i + CHUNK_SIZE]
-            request_inst = await crud_request.create_request(session, titles_amount=len(chunk))
+            request_inst = await crud_request.create_request(session, titles_amount=len(chunk), selected_prompt_id=prompt_id)
 
             for t in chunk:
                 title_inst = await crud_title.create_title(session, title=t, request_id=request_inst.id)
@@ -40,6 +51,7 @@ async def list_requests(db: Database, query: RequestListQuery) -> RequestListOut
             created_at=row.Request.created_at,
             attempt_error_count=row.attempt_error_count,
             hard_error_count=row.hard_error_count,
+            selected_prompt_id=row.Request.selected_prompt_id
         )
         for row in rows
     ]
@@ -68,6 +80,7 @@ async def get_request(db: Database, id: int, query: RequestGetQuery) -> RequestD
             attempt_error_count=r.attempt_error_count,
             status=r.status,
             total_tokens=r.total_tokens,
+            used_prompt_id=r.used_prompt_id
         )
         for r in title_rows
     ]
@@ -80,6 +93,7 @@ async def get_request(db: Database, id: int, query: RequestGetQuery) -> RequestD
         created_at=request_inst.created_at,
         attempt_error_count=row.attempt_error_count,
         hard_error_count=row.hard_error_count,
+        selected_prompt_id=row.Request.selected_prompt_id,
         titles=TitleListOut(
             items=titles,
             pagination=PaginationOut(limit=query.limit, offset=query.offset, total=total),

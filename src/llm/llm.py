@@ -25,12 +25,12 @@ class LLLM:
     def __init__(self, base_url: str, api_key: str):
         self.client = AsyncOpenAI(base_url=base_url, api_key=api_key)
 
-    async def extract(self, title: str, model: str) -> ExtractionResult:
+    async def extract(self, title: str, model: str, prompt: str) -> ExtractionResult:
         start = monotonic()
         response = await self.client.chat.completions.create(
             model=model,
             messages=[
-                {"role": "system", "content": INSTRUCTION},
+                {"role": "system", "content": prompt},
                 {"role": "user", "content": title},
             ],
             response_format={

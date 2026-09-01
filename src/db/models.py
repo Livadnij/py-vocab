@@ -1,6 +1,6 @@
 from uuid import UUID
 
-from sqlalchemy import Enum, ForeignKey, func
+from sqlalchemy import Enum, ForeignKey, Index, func, text
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
 from datetime import timedelta, datetime
@@ -125,10 +125,12 @@ class Request(TimestampMixin, Base):
     uuid: Mapped[UUID] = mapped_column(unique=True)
     titles_amount: Mapped[int] = mapped_column(nullable=False)
     elapsed_time: Mapped[timedelta | None] = mapped_column(nullable=True)
+    selected_prompt_id: Mapped[int | None] = mapped_column(ForeignKey("prompts.id"), nullable=True)
 
     titles: Mapped[list['Title']] = relationship(back_populates='request')
     attempts: Mapped[list["ProcessingAttempt"]] = relationship(back_populates="request")
     hard_errors: Mapped[list["HardError"]] = relationship(back_populates="request")
+    selected_prompt: Mapped["Prompt | None"] = relationship(back_populates="requests")
 
 
 class Thinking(CreatedAtMixin, Base):
@@ -143,8 +145,10 @@ class Thinking(CreatedAtMixin, Base):
     model: Mapped[str] = mapped_column(nullable=False)
     response: Mapped[str | None] = mapped_column(nullable=True)
     duration: Mapped[timedelta] = mapped_column(nullable=False)
+    used_prompt_id: Mapped[int] = mapped_column(ForeignKey("prompts.id"), nullable=False)
 
     attempt: Mapped["ProcessingAttempt"] = relationship(back_populates="thinking")
+    used_prompt: Mapped["Prompt"] = relationship(back_populates="thinkings")
 
 
 class HardError(CreatedAtMixin, Base):
@@ -163,3 +167,22 @@ class AttemptError(CreatedAtMixin, Base):
     message: Mapped[str] = mapped_column(nullable=False)
 
     attempt: Mapped["ProcessingAttempt"] = relationship(back_populates="attempt_errors")
+
+
+class Prompt(TimestampMixin, Base):
+    __tablename__ = "prompts"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    prompt: Mapped[str] = mapped_column(nullable=False)
+    is_default: Mapped[bool] = mapped_column(nullable=False, default=False)
+
+    requests: Mapped[list["Request"]] = relationship(back_populates="selected_prompt")
+    thinkings: Mapped[list["Thinking"]] = relationship(back_populates="used_prompt")
+
+    __table_args__ = (
+        Index(
+            "uq_prompts_one_default",
+            "is_default",
+            unique=True,
+            sqlite_where=text("is_default = 1"),
+        ),
+    )

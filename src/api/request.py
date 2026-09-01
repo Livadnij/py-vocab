@@ -13,7 +13,7 @@ async def create_requests(
     titles: TitlesList, 
     db: Annotated[Database, Depends(get_db)]
     ):
-    return await service_request.create_request(db, titles.titles)
+    return await service_request.create_request(db, titles.titles, titles.prompt_id)
 
 
 @router.get("/requests", response_model=RequestListOut)
