@@ -3,7 +3,7 @@ from src.db.crud import (
     title as crud_title,
 )
 from src.schemas.thinking import ThinkingOut
-from src.schemas.title import TitleDetailOut
+from src.schemas.title import TitleDetailOut, WordWithOccurrence
 
 
 async def get_title_by_request(db: Database, request_id: int, title_id: int) -> TitleDetailOut | None:
@@ -31,9 +31,9 @@ async def get_title_by_request(db: Database, request_id: int, title_id: int) -> 
             title=row.Title.title,
             created_at=row.Title.created_at,
             status=row.status,
-            brands=[b.name for b in row.Title.brands],
-            tier_words=[t.name for t in row.Title.tier_words],
-            descriptors=[d.name for d in row.Title.descriptors],
+            brands=[WordWithOccurrence(id=b.id, name=b.name, occurrence=b.occurrence) for b in row.Title.brands],
+            tier_words=[WordWithOccurrence(id=t.id, name=t.name, occurrence=t.occurrence) for t in row.Title.tier_words],
+            descriptors=[WordWithOccurrence(id=d.id, name=d.name, occurrence=d.occurrence) for d in row.Title.descriptors],
             attempt_error_count=row.attempt_error_count,
             thinking=thinking,
         )
