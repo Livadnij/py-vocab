@@ -4,6 +4,21 @@ from sqlalchemy.orm import contains_eager, selectinload
 from src.db.models import AttemptError, AttemptStatus, ProcessingAttempt, Thinking, Title, TitleBrand, TitleDescriptor, TitleTierWord
 from src.schemas.title import RequestGetQuery, TitleListQuery
 
+
+def _title_attempt_id(request_id: int):
+    return (
+        select(ProcessingAttempt.id)
+        .where(
+            ProcessingAttempt.title_id == Title.id,
+            ProcessingAttempt.request_id == request_id,
+        )
+        .correlate(Title)
+        .limit(1)
+        .scalar_subquery()
+    )
+
+
+
 async def get_title_with_vocab(session: AsyncSession, title_id: int) -> Title | None:
     return await session.get(
         Title,
@@ -145,6 +160,7 @@ async def list_titles_for_request(session: AsyncSession, request_id: int, query:
     status = _title_status(request_id)
     total_tokens = _title_total_tokens(request_id)
     used_prompt_id = _title_used_prompt_id(request_id)
+    attempt_id = _title_attempt_id(request_id)
 
     SORT_COLUMNS = {
         "title": Title.title,
@@ -168,6 +184,7 @@ async def list_titles_for_request(session: AsyncSession, request_id: int, query:
         status.label("status"),
         total_tokens.label("total_tokens"),
         used_prompt_id.label("used_prompt_id"),
+        attempt_id.label("attempt_id"),
     ).where(_title_in_request(request_id))
     if query.status is not None:
         stmt = stmt.where(_title_has_attempt_status(request_id, query.status))
@@ -252,26 +269,23 @@ async def list_titles(session: AsyncSession, query: TitleListQuery):
     sort_column = SORT_COLUMNS.get(query.sort, request_count)
     order_clause = sort_column.asc() if query.order == "asc" else sort_column.desc()
 
-    stmt = (
-        select(
-            Title,
-            request_count.label("request_count"),
-            brand_count.label("brand_count"),
-            tier_word_count.label("tier_word_count"),
-            descriptor_count.label("descriptor_count"),
-        )
-        .order_by(order_clause)
-        .limit(query.limit)
-        .offset(query.offset)
+    stmt = select(
+        Title,
+        request_count.label("request_count"),
+        brand_count.label("brand_count"),
+        tier_word_count.label("tier_word_count"),
+        descriptor_count.label("descriptor_count"),
     )
+    if query.q:
+        stmt = stmt.where(Title.title.ilike(f"%{query.q}%"))
+    stmt = stmt.order_by(order_clause).limit(query.limit).offset(query.offset)
+
     result = await session.execute(stmt)
     return result.all()
 
-async def count_titles(session: AsyncSession) -> int:
-    return await session.scalar(select(func.count()).select_from(Title)) or 0
+async def count_titles(session: AsyncSession, query: TitleListQuery) -> int:
+    stmt = select(func.count()).select_from(Title)
+    if query.q:
+        stmt = stmt.where(Title.title.ilike(f"%{query.q}%"))
+    return await session.scalar(stmt) or 0
 
-async def get_attempts_for_titles(session: AsyncSession, title_ids: list[int]) -> list[ProcessingAttempt]:
-    result = await session.scalars(
-        select(ProcessingAttempt).where(ProcessingAttempt.title_id.in_(title_ids))
-    )
-    return list(result.all())

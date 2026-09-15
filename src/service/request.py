@@ -9,7 +9,7 @@ from src.db.crud import (
     hard_error as crud_hard_error,
     )
 from src.schemas.common import PaginationOut
-from src.schemas.request import RequestDetailOut, RequestListOut, RequestListQuery, RequestOut
+from src.schemas.request import HardErrorOut, RequestDetailOut, RequestListOut, RequestListQuery, RequestOut
 from src.schemas.title import RequestGetQuery, TitleListOut, TitleOut
 
 
@@ -85,6 +85,7 @@ async def get_request(db: Database, id: int, query: RequestGetQuery) -> RequestD
             return None
         title_rows = await crud_title.list_titles_for_request(session, id, query)
         total = await crud_title.count_titles_for_request(session, id, query)
+        hard_error_rows = await crud_hard_error.get_errors_for_request(session, id)
 
     request_inst = row.Request
     titles = [
@@ -98,9 +99,15 @@ async def get_request(db: Database, id: int, query: RequestGetQuery) -> RequestD
             attempt_error_count=r.attempt_error_count,
             status=r.status,
             total_tokens=r.total_tokens,
-            used_prompt_id=r.used_prompt_id
+            used_prompt_id=r.used_prompt_id,
+            attempt_id=r.attempt_id,
         )
         for r in title_rows
+    ]
+
+    hard_errors = [
+        HardErrorOut(id=e.id, message=e.message, created_at=e.created_at)
+        for e in hard_error_rows
     ]
 
     return RequestDetailOut(
@@ -116,4 +123,5 @@ async def get_request(db: Database, id: int, query: RequestGetQuery) -> RequestD
             items=titles,
             pagination=PaginationOut(limit=query.limit, offset=query.offset, total=total),
         ),
+        hard_errors=hard_errors,
     )

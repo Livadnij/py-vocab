@@ -1,7 +1,7 @@
-from sqlalchemy import delete, update, select
+from sqlalchemy import delete, func, update, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload, selectinload
-from src.db.models import AttemptError, AttemptStatus, ProcessingAttempt, Thinking, Title
+from src.db.models import AttemptError, AttemptStatus, ProcessingAttempt, Prompt, Thinking, Title
 
 async def create_attempt(session: AsyncSession, title_id: int, request_id: int) -> ProcessingAttempt:
     attempt_inst = ProcessingAttempt(title_id=title_id, request_id=request_id)
@@ -51,3 +51,50 @@ async def recover_stuck_attempts(session: AsyncSession) -> int:
     )
     await session.commit()
     return result.rowcount
+
+async def get_attempts_for_title(session: AsyncSession, title_id: int):
+    attempt_error_count = (
+        select(func.count(AttemptError.id))
+        .where(AttemptError.attempt_id == ProcessingAttempt.id)
+        .correlate(ProcessingAttempt)
+        .scalar_subquery()
+    )
+
+    stmt = (
+        select(ProcessingAttempt, attempt_error_count.label("attempt_error_count"))
+        .where(ProcessingAttempt.title_id == title_id)
+        .order_by(ProcessingAttempt.created_at.desc())
+    )
+    result = await session.execute(stmt)
+    return result.all()
+
+
+async def get_attempt_detail(session: AsyncSession, attempt_id: int):
+    attempt_error_count = (
+        select(func.count(AttemptError.id))
+        .where(AttemptError.attempt_id == ProcessingAttempt.id)
+        .correlate(ProcessingAttempt)
+        .scalar_subquery()
+    )
+
+    stmt = (
+        select(
+            ProcessingAttempt,
+            attempt_error_count.label("attempt_error_count"),
+            Thinking.used_prompt_id,
+            Thinking.model,
+            Thinking.finish_reason,
+            Thinking.prompt_tokens,
+            Thinking.completion_tokens,
+            Thinking.reasoning_tokens,
+            Thinking.duration,
+            Thinking.text,
+            Thinking.response,
+            Prompt.prompt,
+        )
+        .outerjoin(Thinking, Thinking.attempt_id == ProcessingAttempt.id)
+        .outerjoin(Prompt, Prompt.id == Thinking.used_prompt_id)
+        .where(ProcessingAttempt.id == attempt_id)
+    )
+    result = await session.execute(stmt)
+    return result.first()

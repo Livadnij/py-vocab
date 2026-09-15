@@ -48,5 +48,11 @@ class RequestListOut(BaseModel):
     items: list[RequestOut]
     pagination: PaginationOut
 
+class HardErrorOut(BaseModel):
+    id: int
+    message: str
+    created_at: datetime
+
 class RequestDetailOut(RequestOut):
     titles: TitleListOut
+    hard_errors: list[HardErrorOut] = []
