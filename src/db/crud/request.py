@@ -4,7 +4,7 @@ from sqlalchemy import and_, exists, func, not_, or_, select, update
 from uuid import uuid4
 from sqlalchemy.ext.asyncio import AsyncSession
 from src.db.models import AttemptError, AttemptStatus, HardError, ProcessingAttempt, Request
-from src.schemas import RequestListQuery, RequestStatus
+from src.schemas.request import RequestListQuery, RequestStatus
 
 
 async def create_request(session: AsyncSession, titles_amount: int, selected_prompt_id: int | None = None) -> Request:

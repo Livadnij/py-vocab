@@ -4,7 +4,7 @@ from fastapi import APIRouter, Depends, Query
 from src.api.deps import get_db
 from src.db.database import Database
 from src.schemas.common import PaginationParams
-from src.schemas import PromptCreate, PromptListOut, PromptOut
+from src.schemas.prompt import PromptCreate, PromptListOut, PromptOut
 from src.service import prompt as service_prompt
 
 router = APIRouter()

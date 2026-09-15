@@ -3,7 +3,7 @@ from dataclasses import dataclass
 from openai import AsyncOpenAI
 from src.llm.prompt import INSTRUCTION
 import json
-from src.schemas import TokenList
+from src.schemas.token import TokenList
 
 from datetime import timedelta
 from time import monotonic

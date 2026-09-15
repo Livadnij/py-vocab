@@ -2,40 +2,58 @@ from fastapi import HTTPException
 
 from src.db.database import Database
 from src.db.crud import (
-    request as crud_request, 
-    title as crud_title, 
+    request as crud_request,
+    title as crud_title,
     attempt as crud_attempt,
-    prompt as crud_prompt
+    prompt as crud_prompt,
+    hard_error as crud_hard_error,
     )
-from src.schemas import PaginationOut, RequestDetailOut, RequestGetQuery, RequestListOut, RequestListQuery, RequestOut, TitleListOut, TitleOut
+from src.schemas.common import PaginationOut
+from src.schemas.request import RequestDetailOut, RequestListOut, RequestListQuery, RequestOut
+from src.schemas.title import RequestGetQuery, TitleListOut, TitleOut
 
 
-CHUNK_SIZE = 200
-
-async def create_request(db: Database, titles: list[str], prompt_id: int | None = None):
-    unique_titles = list(dict.fromkeys(titles))
+async def create_request(db: Database, title_ids: list[int], prompt_id: int | None = None) -> RequestOut:
+    unique_ids = list(dict.fromkeys(title_ids))
 
     async with db.session() as session:
         if prompt_id is not None:
             prompt = await crud_prompt.get_prompt_by_id(session, prompt_id)
             if prompt is None:
                 raise HTTPException(status_code=404, detail="Prompt not found")
-        existing = await crud_title.get_titles_by_title(session, unique_titles)
-        new_titles = [t for t in unique_titles if t not in existing]
 
-        requests = []
-        for i in range(0, len(new_titles), CHUNK_SIZE):
-            chunk = new_titles[i:i + CHUNK_SIZE]
-            request_inst = await crud_request.create_request(session, titles_amount=len(chunk), selected_prompt_id=prompt_id)
+        request_inst = await crud_request.create_request(
+            session, titles_amount=len(unique_ids), selected_prompt_id=prompt_id
+        )
 
-            for t in chunk:
-                title_inst = await crud_title.create_title(session, title=t, request_id=request_inst.id)
-                await crud_attempt.create_attempt(session, title_id=title_inst.id, request_id=request_inst.id)
+        titles = await crud_title.get_titles_by_ids(session, unique_ids)
+        found_ids = {t.id for t in titles}
+        missing_ids = [i for i in unique_ids if i not in found_ids]
 
-            requests.append(request_inst)
+        if missing_ids:
+            await crud_hard_error.create_hard_error(
+                session,
+                request_id=request_inst.id,
+                message=f"Title ids not found: {missing_ids}",
+            )
+            await session.commit()
+            raise HTTPException(status_code=404, detail=f"Title ids not found: {missing_ids}")
+
+        for title_inst in titles:
+            await crud_attempt.create_attempt(session, title_id=title_inst.id, request_id=request_inst.id)
 
         await session.commit()
-        return requests
+
+        return RequestOut(
+            id=request_inst.id,
+            uuid=request_inst.uuid,
+            titles_amount=request_inst.titles_amount,
+            elapsed_time=request_inst.elapsed_time,
+            created_at=request_inst.created_at,
+            attempt_error_count=0,
+            hard_error_count=0,
+            selected_prompt_id=request_inst.selected_prompt_id,
+        )
 
 async def list_requests(db: Database, query: RequestListQuery) -> RequestListOut:
     async with db.session() as session:

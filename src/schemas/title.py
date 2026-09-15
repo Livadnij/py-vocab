@@ -1,11 +1,15 @@
 from datetime import datetime
 from typing import Literal
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 
 from src.db.models import AttemptStatus
 from src.schemas.common import PaginationOut, PaginationParams
 from src.schemas.thinking import ThinkingOut
+
+
+class TitleCreate(BaseModel):
+    titles: list[str] = Field(min_length=1)
 
 
 class TitleBase(BaseModel):
@@ -54,3 +58,24 @@ class TitleListOut(BaseModel):
     items: list[TitleOut]
     pagination: PaginationOut
 
+class RequestSummary(BaseModel):
+    request_id: int
+    status: AttemptStatus
+
+
+class TitleListParams(BaseModel):
+    order: Literal["asc", "desc"] = "asc"
+    sort: Literal["id", "title", "created_at", "request_count", "brand_count", "tier_word_count", "descriptor_count", "total_word_count"] = "request_count"
+
+class TitleListQuery(PaginationParams, TitleListParams):
+    pass
+
+class TitleWithRequestsOut(TitleBase):
+    brand_count: int = 0
+    tier_word_count: int = 0
+    descriptor_count: int = 0
+    requests: list[RequestSummary] = []
+
+class TitleWithRequestsListOut(BaseModel):
+    items: list[TitleWithRequestsOut]
+    pagination: PaginationOut

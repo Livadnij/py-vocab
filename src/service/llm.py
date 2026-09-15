@@ -1,9 +1,6 @@
-from pydantic import ValidationError
-
-from sqlalchemy.ext.asyncio import AsyncSession
 from src.llm.llm import LLLM, ExtractionResult
 from src.db.models import ProcessingAttempt
-from src.schemas import TitlesList, TokenBase, TokenList
+from src.schemas.token import TokenBase, TokenList
 
 from src.db.crud import attempt_error as crud_attempt_error
 

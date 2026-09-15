@@ -38,9 +38,7 @@ class Brand(TimestampMixin, Base):
     __tablename__ = "brands"
     id: Mapped[int] = mapped_column(primary_key=True)
     name: Mapped[str] = mapped_column(unique=True, nullable=False)
-    occurrence: Mapped[int] = mapped_column(nullable=False, default=1)
 
-    tier_words: Mapped[list["TierWord"]] = relationship(secondary="brand_tier", back_populates="brands")
     titles: Mapped[list["Title"]] = relationship(secondary="title_brands", back_populates="brands")
 
 
@@ -48,7 +46,6 @@ class Descriptor(TimestampMixin, Base):
     __tablename__ = "descriptors"
     id: Mapped[int] = mapped_column(primary_key=True)
     name: Mapped[str] = mapped_column(unique=True, nullable=False)
-    occurrence: Mapped[int] = mapped_column(nullable=False, default=1)
 
     titles: Mapped[list["Title"]] = relationship(secondary="title_descriptors", back_populates="descriptors")
 
@@ -57,17 +54,8 @@ class TierWord(TimestampMixin, Base):
     __tablename__ = "tier_words"
     id: Mapped[int] = mapped_column(primary_key=True)
     name: Mapped[str] = mapped_column(unique=True, nullable=False)
-    occurrence: Mapped[int] = mapped_column(nullable=False, default=1)
 
-    brands: Mapped[list["Brand"]] = relationship(secondary="brand_tier", back_populates="tier_words")
     titles: Mapped[list["Title"]] = relationship(secondary="title_tier_words", back_populates="tier_words")
-
-
-class BrandTier(TimestampMixin, Base):
-    __tablename__ = "brand_tier"
-    brand_id: Mapped[int] = mapped_column(ForeignKey("brands.id"), primary_key=True)
-    tier_word_id: Mapped[int] = mapped_column(ForeignKey("tier_words.id"), primary_key=True)
-    occurrence: Mapped[int] = mapped_column(nullable=False, default=1)
 
 
 class TitleBrand(CreatedAtMixin, Base):
@@ -92,9 +80,7 @@ class Title(CreatedAtMixin, Base):
     __tablename__ = "titles"
     id: Mapped[int] = mapped_column(primary_key=True)
     title: Mapped[str] = mapped_column(unique=True, nullable=False)
-    request_id: Mapped[int] = mapped_column(ForeignKey("requests.id"))
 
-    request: Mapped["Request"] = relationship(back_populates="titles")
     attempts: Mapped[list["ProcessingAttempt"]] = relationship(back_populates="title")
     brands: Mapped[list["Brand"]] = relationship(secondary="title_brands", back_populates="titles")
     tier_words: Mapped[list["TierWord"]] = relationship(secondary="title_tier_words", back_populates="titles")
@@ -127,7 +113,6 @@ class Request(TimestampMixin, Base):
     elapsed_time: Mapped[timedelta | None] = mapped_column(nullable=True)
     selected_prompt_id: Mapped[int | None] = mapped_column(ForeignKey("prompts.id"), nullable=True)
 
-    titles: Mapped[list['Title']] = relationship(back_populates='request')
     attempts: Mapped[list["ProcessingAttempt"]] = relationship(back_populates="request")
     hard_errors: Mapped[list["HardError"]] = relationship(back_populates="request")
     selected_prompt: Mapped["Prompt | None"] = relationship(back_populates="requests")

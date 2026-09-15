@@ -1,6 +1,7 @@
 from src.db.database import Database
 from src.db.crud import prompt as crud_prompt
-from src.schemas import PaginationOut, PromptListOut, PromptOut
+from src.schemas.common import PaginationOut
+from src.schemas.prompt import PromptListOut, PromptOut
 
 
 async def create_prompt(db: Database, prompt: str) -> PromptOut:

@@ -1,7 +1,7 @@
 import json
 from pydantic import ValidationError
 from src.llm.llm import ExtractionResult
-from src.schemas import TokenList
+from src.schemas.token import TokenList
 
 
 class ResponseParsingError(Exception):

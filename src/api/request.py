@@ -3,17 +3,18 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, HTTPException, Query
 from src.api.deps import get_db
 from src.db.database import Database
-from src.schemas import RequestDetailOut, RequestGetQuery, RequestListOut, RequestListQuery, RequestOut, TitlesList
+from src.schemas.request import RequestCreate, RequestDetailOut, RequestListOut, RequestListQuery, RequestOut
+from src.schemas.title import RequestGetQuery
 from src.service import request as service_request
 
 router = APIRouter()
 
-@router.post("/requests", response_model=list[RequestOut])
-async def create_requests(
-    titles: TitlesList, 
+@router.post("/requests", response_model=RequestOut)
+async def create_request(
+    body: RequestCreate,
     db: Annotated[Database, Depends(get_db)]
     ):
-    return await service_request.create_request(db, titles.titles, titles.prompt_id)
+    return await service_request.create_request(db, body.title_ids, body.prompt_id)
 
 
 @router.get("/requests", response_model=RequestListOut)

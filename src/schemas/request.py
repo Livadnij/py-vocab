@@ -3,14 +3,14 @@ import enum
 from typing import Literal
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from src.schemas.common import PaginationOut, PaginationParams
 from src.schemas.title import TitleListOut
 
 
-class TitlesList(BaseModel):
-    titles: list[str]
+class RequestCreate(BaseModel):
+    title_ids: list[int] = Field(min_length=1)
     prompt_id: int | None = None
 
 class RequestStatus(str, enum.Enum):
