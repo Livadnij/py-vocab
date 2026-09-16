@@ -1,7 +1,7 @@
 import asyncio
 
 from src.config import settings
-from src.db.models import  AttemptStatus, ProcessingAttempt
+from src.db.models import AttemptStatus, ProcessingAttempt
 
 from src.db.database import Database
 from src.llm.llm import LLLM, ExtractionResult
@@ -11,42 +11,31 @@ from src.db.crud import (
     attempt_error as crud_attempt_error,
     token as crud_token,
     hard_error as crud_hard_error,
-    request as crud_request,
     title as crud_title
 )
-from datetime import timedelta
-from time import monotonic
 
 from src.llm.parsing import ResponseParsingError, parse_extraction_response
 from src.service.llm import LLMCallError, LLMSystemicError, extract_raw_tokens, normalize_tokens
-from src.worker.state import WorkerState
 
 
-async def run_process(db: Database, llm: LLLM, request_attempts: list[ProcessingAttempt], request_id: int, prompt_id: int, prompt_text: str) -> bool:
-    """Returns True if a systemic failure halted this request."""
-    start = monotonic()
+async def run_process(db: Database, llm: LLLM, attempts: list[ProcessingAttempt], prompt_id: int, prompt_text: str) -> bool:
+    """Returns True if a systemic failure halted this run."""
     halt_event = asyncio.Event()
     systemic_error: list[str] = []
 
-    try:
-        titles_len = len(request_attempts)
-        semaphore = asyncio.Semaphore(settings.LLM_CONCURENT_REQ)
-        await asyncio.gather(*(
-            process_title(semaphore, llm, db, attempt, settings.LLM_MODEL, prompt_id, prompt_text, i, titles_len, halt_event, systemic_error)
-            for i, attempt in enumerate(request_attempts)
-        ))
-        if halt_event.is_set() and systemic_error:
-            async with db.session() as session:
-                await crud_hard_error.create_hard_error(session, systemic_error[0], request_id)
-                await session.commit()
-            return True
-        return False
-    finally:
-        duration = timedelta(seconds=monotonic() - start)
+    titles_len = len(attempts)
+    semaphore = asyncio.Semaphore(settings.LLM_CONCURENT_REQ)
+    await asyncio.gather(*(
+        process_title(semaphore, llm, db, attempt, settings.LLM_MODEL, prompt_id, prompt_text, i, titles_len, halt_event, systemic_error)
+        for i, attempt in enumerate(attempts)
+    ))
+    if halt_event.is_set() and systemic_error:
         async with db.session() as session:
-            await crud_request.update_request(session, request_id, elapsed_time=duration)
+            await crud_hard_error.create_hard_error(session, systemic_error[0])
             await session.commit()
-            
+        return True
+    return False
+
 
 async def run_llm_extraction(
     semaphore: asyncio.Semaphore,

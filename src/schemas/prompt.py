@@ -1,8 +1,9 @@
 from datetime import datetime
+from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
-from src.schemas.common import PaginationOut
+from src.schemas.common import PaginationOut, PaginationParams
 
 
 class PromptCreate(BaseModel):
@@ -22,3 +23,11 @@ class PromptOut(BaseModel):
 class PromptListOut(BaseModel):
     items: list[PromptOut]
     pagination: PaginationOut
+
+
+class PromptListParams(BaseModel):
+    order: Literal["asc", "desc"] = "desc"
+    sort: Literal["id", "created_at", "titles_used_count"] = "created_at"
+
+class PromptListQuery(PaginationParams, PromptListParams):
+    pass

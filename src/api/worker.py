@@ -5,8 +5,8 @@ from fastapi import APIRouter, Depends, Request
 from src.api.deps import get_db, get_llm
 from src.db.database import Database
 from src.llm.llm import LLLM
-from src.schemas.worker import ProcessRequestsBody
-from src.worker.loop import process_requests
+from src.schemas.worker import ProcessAttemptsBody
+from src.worker.loop import process_pending
 from src.worker.state import WorkerState
 
 router = APIRouter()
@@ -15,8 +15,8 @@ def get_worker_state(request: Request) -> WorkerState:
     return request.state.worker_state
 
 @router.post("/worker/process")
-async def process_request_by_id(
-    body: ProcessRequestsBody,
+async def process_pending_attempts(
+    body: ProcessAttemptsBody,
     state: Annotated[WorkerState, Depends(get_worker_state)],
     db: Annotated[Database, Depends(get_db)],
     llm: Annotated[LLLM, Depends(get_llm)],
@@ -24,9 +24,9 @@ async def process_request_by_id(
     if state.is_processing:
         raise HTTPException(status_code=409, detail="Worker is already processing")
 
-    task = asyncio.create_task(process_requests(db, llm, body.request_ids, state))
+    task = asyncio.create_task(process_pending(db, llm, state, body.limit))
     state.task = task
-    return {"processing": body.request_ids}
+    return {"processing": True, "limit": body.limit}
 
 
 @router.post("/worker/stop")

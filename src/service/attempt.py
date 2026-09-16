@@ -32,7 +32,6 @@ async def get_attempt_detail(db: Database, attempt_id: int) -> AttemptDetailOut 
 
         return AttemptDetailOut(
             id=row.ProcessingAttempt.id,
-            request_id=row.ProcessingAttempt.request_id,
             status=row.ProcessingAttempt.status,
             created_at=row.ProcessingAttempt.created_at,
             attempt_error_count=row.attempt_error_count,

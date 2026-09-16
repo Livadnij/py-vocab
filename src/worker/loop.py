@@ -2,8 +2,8 @@ from src.db.database import Database
 from src.db.models import Prompt
 from src.llm.llm import LLLM
 from src.worker.state import WorkerState
-from src.db.crud import attempt as crud_attempt, request as crud_request
-from src.service import processing as service_attempt
+from src.db.crud import attempt as crud_attempt
+from src.service import processing as service_processing
 import logging
 
 from src.db.crud import (
@@ -14,39 +14,28 @@ from src.db.crud import (
 
 logger = logging.getLogger(__name__)
 
-POLL_INTERVAL_SECONDS = 5
 
-async def resolve_prompt(session, request_inst) -> tuple[Prompt | None, str | None]:
-    if request_inst.selected_prompt_id is not None:
-        prompt = await crud_prompt.get_prompt_by_id(session, request_inst.selected_prompt_id)
-        error = f"selected_prompt_id {request_inst.selected_prompt_id} not found" if prompt is None else None
-    else:
-        prompt = await crud_prompt.get_default_prompt(session)
-        error = "no default prompt configured" if prompt is None else None
+async def resolve_default_prompt(session) -> tuple[Prompt | None, str | None]:
+    prompt = await crud_prompt.get_default_prompt(session)
+    error = "no default prompt configured" if prompt is None else None
     return prompt, error
 
 
-async def process_requests(db: Database, llm: LLLM, request_ids: list[int], state: WorkerState) -> None:
+async def process_pending(db: Database, llm: LLLM, state: WorkerState, limit: int | None = None) -> None:
     try:
         state.is_processing = True
-        for request_id in request_ids:
-            async with db.session() as session:
-                row = await crud_request.get_request_by_id(session, request_id)
-                if row is None:
-                    continue
-                request_attempts = await crud_attempt.get_pending_attempts_for_request(session=session, request_id=request_id)
-                if not request_attempts:
-                    continue
+        async with db.session() as session:
+            attempts = await crud_attempt.get_pending_attempts(session, limit=limit)
+            if not attempts:
+                return
 
-                prompt, error = await resolve_prompt(session, row.Request)
-                if error:
-                    await crud_hard_error.create_hard_error(session, error, request_id)
-                    await session.commit()
-                    continue
+            prompt, error = await resolve_default_prompt(session)
+            if error:
+                await crud_hard_error.create_hard_error(session, error)
+                await session.commit()
+                return
 
-            halted = await service_attempt.run_process(db, llm, request_attempts, request_id, prompt.id, prompt.prompt)
-            if halted:
-                break
+        await service_processing.run_process(db, llm, attempts, prompt.id, prompt.prompt)
     finally:
         state.is_processing = False
         state.task = None

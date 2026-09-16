@@ -1,5 +1,3 @@
-from uuid import UUID
-
 from sqlalchemy import Enum, ForeignKey, Index, func, text
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
@@ -91,7 +89,6 @@ class ProcessingAttempt(CreatedAtMixin, Base):
     __tablename__ = "processing_attempts"
     id: Mapped[int] = mapped_column(primary_key=True)
     title_id: Mapped[int] = mapped_column(ForeignKey("titles.id"))
-    request_id: Mapped[int] = mapped_column(ForeignKey("requests.id"))
     status: Mapped[AttemptStatus] = mapped_column(
         Enum(AttemptStatus, name="attempt_status", native_enum=False),
         nullable=False,
@@ -100,22 +97,8 @@ class ProcessingAttempt(CreatedAtMixin, Base):
     )
 
     title: Mapped["Title"] = relationship(back_populates="attempts")
-    request: Mapped["Request"] = relationship(back_populates="attempts")
     thinking: Mapped["Thinking | None"] = relationship(back_populates="attempt")
     attempt_errors: Mapped[list["AttemptError"]] = relationship(back_populates="attempt")
-
-
-class Request(TimestampMixin, Base):
-    __tablename__ = "requests"
-    id: Mapped[int] = mapped_column(primary_key=True)
-    uuid: Mapped[UUID] = mapped_column(unique=True)
-    titles_amount: Mapped[int] = mapped_column(nullable=False)
-    elapsed_time: Mapped[timedelta | None] = mapped_column(nullable=True)
-    selected_prompt_id: Mapped[int | None] = mapped_column(ForeignKey("prompts.id"), nullable=True)
-
-    attempts: Mapped[list["ProcessingAttempt"]] = relationship(back_populates="request")
-    hard_errors: Mapped[list["HardError"]] = relationship(back_populates="request")
-    selected_prompt: Mapped["Prompt | None"] = relationship(back_populates="requests")
 
 
 class Thinking(CreatedAtMixin, Base):
@@ -139,10 +122,7 @@ class Thinking(CreatedAtMixin, Base):
 class HardError(CreatedAtMixin, Base):
     __tablename__ = "hard_errors"
     id: Mapped[int] = mapped_column(primary_key=True)
-    request_id: Mapped[int] = mapped_column(ForeignKey("requests.id"))
     message: Mapped[str] = mapped_column(nullable=False)
-
-    request: Mapped["Request"] = relationship(back_populates="hard_errors")
 
 
 class AttemptError(CreatedAtMixin, Base):
@@ -160,7 +140,6 @@ class Prompt(TimestampMixin, Base):
     prompt: Mapped[str] = mapped_column(nullable=False)
     is_default: Mapped[bool] = mapped_column(nullable=False, default=False)
 
-    requests: Mapped[list["Request"]] = relationship(back_populates="selected_prompt")
     thinkings: Mapped[list["Thinking"]] = relationship(back_populates="used_prompt")
 
     __table_args__ = (
