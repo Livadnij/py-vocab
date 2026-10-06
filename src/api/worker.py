@@ -1,7 +1,8 @@
 import asyncio
-from http.client import HTTPException
+import json
 from typing import Annotated
-from fastapi import APIRouter, Depends, Request
+from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi.responses import StreamingResponse
 from src.api.deps import get_db, get_llm
 from src.db.database import Database
 from src.llm.llm import LLLM
@@ -38,3 +39,18 @@ async def stop_worker(state: Annotated[WorkerState, Depends(get_worker_state)]):
 @router.get("/worker/status")
 async def worker_status(state: Annotated[WorkerState, Depends(get_worker_state)]):
     return {"processing": state.is_processing}
+
+
+@router.get("/worker/events")
+async def worker_events(state: Annotated[WorkerState, Depends(get_worker_state)]):
+    async def event_stream():
+        queue = state.subscribe()
+        try:
+            yield f"data: {json.dumps({'processing': state.is_processing})}\n\n"
+            while True:
+                payload = await queue.get()
+                yield f"data: {json.dumps(payload)}\n\n"
+        finally:
+            state.unsubscribe(queue)
+
+    return StreamingResponse(event_stream(), media_type="text/event-stream")

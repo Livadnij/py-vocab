@@ -4,6 +4,7 @@ from src.llm.llm import LLLM
 from src.worker.state import WorkerState
 from src.db.crud import attempt as crud_attempt
 from src.service import processing as service_processing
+import asyncio
 import logging
 
 from src.db.crud import (
@@ -24,6 +25,7 @@ async def resolve_default_prompt(session) -> tuple[Prompt | None, str | None]:
 async def process_pending(db: Database, llm: LLLM, state: WorkerState, limit: int | None = None) -> None:
     try:
         state.is_processing = True
+        state.notify()
         async with db.session() as session:
             attempts = await crud_attempt.get_pending_attempts(session, limit=limit)
             if not attempts:
@@ -35,7 +37,13 @@ async def process_pending(db: Database, llm: LLLM, state: WorkerState, limit: in
                 await session.commit()
                 return
 
-        await service_processing.run_process(db, llm, attempts, prompt.id, prompt.prompt)
+        try:
+            await service_processing.run_process(db, llm, attempts, prompt.id, prompt.prompt)
+        except asyncio.CancelledError:
+            async with db.session() as session:
+                await crud_attempt.recover_stuck_attempts(session)
+            raise
     finally:
         state.is_processing = False
         state.task = None
+        state.notify()

@@ -15,7 +15,7 @@ from src.db.crud import (
 )
 
 from src.llm.parsing import ResponseParsingError, parse_extraction_response
-from src.service.llm import LLMCallError, LLMSystemicError, extract_raw_tokens, normalize_tokens
+from src.service.llm import LLMCallError, LLMSystemicError, extract_raw_tokens, validate_tokens
 
 
 async def run_process(db: Database, llm: LLLM, attempts: list[ProcessingAttempt], prompt_id: int, prompt_text: str) -> bool:
@@ -110,7 +110,7 @@ async def process_extraction_result(
         return
 
     async with db.session() as session:
-        validated_token_list = await normalize_tokens(session, attempt, token_list, title_log)
+        validated_token_list = await validate_tokens(session, attempt, token_list, title_log)
         if not validated_token_list:
             message = "No tokens remained after normalization"
             await crud_attempt_error.create_attempt_error(session, message, attempt.id)

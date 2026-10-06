@@ -90,6 +90,16 @@ async def retry_title(db: Database, title_id: int) -> AttemptOut | None:
         titles = await crud_title.get_titles_by_ids(session, [title_id])
         if not titles:
             return None
+
+        active = await crud_attempt.get_active_attempt(session, title_id)
+        if active is not None:
+            return AttemptOut(
+                id=active.id,
+                status=active.status,
+                created_at=active.created_at,
+                attempt_error_count=0,
+            )
+
         attempt_inst = await crud_attempt.create_attempt(session, title_id=title_id)
         await session.commit()
         return AttemptOut(

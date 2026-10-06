@@ -96,3 +96,13 @@ async def get_attempt_detail(session: AsyncSession, attempt_id: int):
     )
     result = await session.execute(stmt)
     return result.first()
+
+async def get_active_attempt(session: AsyncSession, title_id: int) -> ProcessingAttempt | None:
+    return await session.scalar(
+        select(ProcessingAttempt)
+        .where(
+            ProcessingAttempt.title_id == title_id,
+            ProcessingAttempt.status.in_([AttemptStatus.pending, AttemptStatus.running]),
+        )
+        .limit(1)
+    )
